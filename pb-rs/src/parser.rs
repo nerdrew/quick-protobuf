@@ -51,7 +51,7 @@ named!(
     do_parse!(tag!("/*") >> take_until_and_consume!("*/") >> ())
 );
 
-/// word break: multispace or comment
+// word break: multispace or comment
 named!(
     br<()>,
     alt!(map!(multispace, |_| ()) | comment | block_comment)
@@ -110,7 +110,7 @@ named!(
             >> tag!("to")
             >> many1!(br)
             >> to_: integer
-            >> ((from_..(to_ + 1)).collect())
+            >> ((from_..=to_).collect())
     )
 );
 

@@ -35,7 +35,9 @@ const SEED: [u8; 16] = [
 fn measure<R: Debug + PartialEq, F: FnMut() -> R>(iter: u64, mut f: F, check: Option<&R>) -> u64 {
     let start = time::precise_time_ns();
     let r = f();
-    check.map(|c| assert_eq!(c, &r));
+    if let Some(c) = check {
+        assert_eq!(c, &r);
+    }
     (time::precise_time_ns() - start) / iter
 }
 
@@ -133,7 +135,7 @@ impl TestRunner {
 
         let mut total_size = 0;
         while total_size < self.data_size {
-            let ref item = data[rng.gen_range(0, data.len())];
+            let item = &data[rng.gen_range(0, data.len())];
             random_data.push(item.clone());
             total_size += item.get_size() as u32;
         }
@@ -194,7 +196,7 @@ impl TestRunner {
 
         let mut total_size = 0;
         while total_size < self.data_size {
-            let ref item = data[rng.gen_range(0, data.len())];
+            let item = &data[rng.gen_range(0, data.len())];
             random_data.push(item.clone());
             total_size += item.get_size() as u32;
         }
@@ -246,7 +248,7 @@ impl TestRunner {
 
         let mut total_size = 0;
         while total_size < self.data_size {
-            let ref item = data[rng.gen_range(0, data.len())];
+            let item = &data[rng.gen_range(0, data.len())];
             random_data.push(item.clone());
             total_size += item.get_size() as u32;
         }
@@ -301,7 +303,7 @@ impl TestRunner {
 
         let mut total_size = 0;
         while total_size < self.data_size {
-            let ref item = data[rng.gen_range(0, data.len())];
+            let item = &data[rng.gen_range(0, data.len())];
             random_data.push(item.clone());
             total_size += item.encoded_len() as u32;
         }
@@ -375,7 +377,7 @@ fn print_results(name: &str, a: &[u64], b: &[u64], c: &[u64], print_header: bool
             "", "ns/iter", "ns/iter", "ns/iter", "%", "%"
         );
     }
-    println!("");
+    println!();
     println!("{}", name);
     for i in 0..3 {
         println!(
@@ -422,17 +424,13 @@ fn main() {
     if args.len() > 3 {
         panic!("usage: {} [data_size] [test]", args[0])
     }
-    let data_size = args
-        .iter()
-        .nth(1)
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(1000000);
-    let selected = args.iter().nth(2).cloned();
+    let data_size = args.get(1).map(|x| x.parse().unwrap()).unwrap_or(1_000_000);
+    let selected = args.get(2).cloned();
 
     let mut runner = TestRunner {
-        selected: selected,
+        selected,
         any_matched: false,
-        data_size: data_size,
+        data_size,
     };
 
     let data = {

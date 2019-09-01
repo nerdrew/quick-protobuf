@@ -9,13 +9,13 @@ pub fn sizeof_varint(v: u64) -> usize {
     match v {
         0x0..=0x7F => 1,
         0x80..=0x3FFF => 2,
-        0x4000..=0x1FFFFF => 3,
-        0x200000..=0xFFFFFFF => 4,
-        0x10000000..=0x7FFFFFFFF => 5,
-        0x0800000000..=0x3FFFFFFFFFF => 6,
-        0x040000000000..=0x1FFFFFFFFFFFF => 7,
-        0x02000000000000..=0xFFFFFFFFFFFFFF => 8,
-        0x0100000000000000..=0x7FFFFFFFFFFFFFFF => 9,
+        0x4000..=0x1FF_FFF => 3,
+        0x200_000..=0xF_FFF_FFF => 4,
+        0x10_000_000..=0x7FF_FFF_FFF => 5,
+        0x0_800_000_000..=0x3F_FFF_FFF_FFF => 6,
+        0x040_000_000_000..=0x1_FFF_FFF_FFF_FFF => 7,
+        0x02_000_000_000_000..=0xFF_FFF_FFF_FFF_FFF => 8,
+        0x0_100_000_000_000_000..=0x7_FFF_FFF_FFF_FFF_FFF => 9,
         _ => 10,
     }
 }
@@ -40,7 +40,7 @@ pub fn sizeof_int64(v: i64) -> usize {
 
 /// Computes the binary size of the varint encoded uint32
 pub fn sizeof_uint32(v: u32) -> usize {
-    sizeof_varint(v as u64)
+    sizeof_varint(u64::from(v))
 }
 
 /// Computes the binary size of the varint encoded uint64

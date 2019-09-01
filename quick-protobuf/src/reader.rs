@@ -106,30 +106,30 @@ impl BytesReader {
     pub fn read_varint32(&mut self, bytes: &[u8]) -> Result<u32> {
         let mut b = self.read_u8(bytes)?;
         if b & 0x80 == 0 {
-            return Ok(b as u32);
+            return Ok(u32::from(b));
         }
-        let mut r = (b & 0x7f) as u32;
+        let mut r = (b & 0x7f).into();
 
         b = self.read_u8(bytes)?;
-        r |= ((b & 0x7f) as u32) << 7;
+        r |= u32::from(b & 0x7f) << 7;
         if b & 0x80 == 0 {
             return Ok(r);
         }
 
         b = self.read_u8(bytes)?;
-        r |= ((b & 0x7f) as u32) << 14;
+        r |= u32::from(b & 0x7f) << 14;
         if b & 0x80 == 0 {
             return Ok(r);
         }
 
         b = self.read_u8(bytes)?;
-        r |= ((b & 0x7f) as u32) << 21;
+        r |= u32::from(b & 0x7f) << 21;
         if b & 0x80 == 0 {
             return Ok(r);
         }
 
         b = self.read_u8(bytes)?;
-        r |= ((b & 0xf) as u32) << 28;
+        r |= u32::from(b & 0xf) << 28;
         if b & 0x80 == 0 {
             return Ok(r);
         }
@@ -151,64 +151,64 @@ impl BytesReader {
         // part0
         let mut b = self.read_u8(bytes)?;
         if b & 0x80 == 0 {
-            return Ok(b as u64);
+            return Ok(u64::from(b));
         }
-        let mut r0 = (b & 0x7f) as u32;
+        let mut r0 = u32::from(b & 0x7f);
 
         b = self.read_u8(bytes)?;
-        r0 |= ((b & 0x7f) as u32) << 7;
+        r0 |= u32::from(b & 0x7f) << 7;
         if b & 0x80 == 0 {
-            return Ok(r0 as u64);
-        }
-
-        b = self.read_u8(bytes)?;
-        r0 |= ((b & 0x7f) as u32) << 14;
-        if b & 0x80 == 0 {
-            return Ok(r0 as u64);
+            return Ok(u64::from(r0));
         }
 
         b = self.read_u8(bytes)?;
-        r0 |= ((b & 0x7f) as u32) << 21;
+        r0 |= u32::from(b & 0x7f) << 14;
         if b & 0x80 == 0 {
-            return Ok(r0 as u64);
+            return Ok(u64::from(r0));
+        }
+
+        b = self.read_u8(bytes)?;
+        r0 |= u32::from(b & 0x7f) << 21;
+        if b & 0x80 == 0 {
+            return Ok(u64::from(r0));
         }
 
         // part1
         b = self.read_u8(bytes)?;
-        let mut r1 = (b & 0x7f) as u32;
+        let mut r1 = u32::from(b & 0x7f);
         if b & 0x80 == 0 {
-            return Ok(r0 as u64 | (r1 as u64) << 28);
+            return Ok(u64::from(r0) | u64::from(r1) << 28);
         }
 
         b = self.read_u8(bytes)?;
-        r1 |= ((b & 0x7f) as u32) << 7;
+        r1 |= u32::from(b & 0x7f) << 7;
         if b & 0x80 == 0 {
-            return Ok(r0 as u64 | (r1 as u64) << 28);
+            return Ok(u64::from(r0) | u64::from(r1) << 28);
         }
 
         b = self.read_u8(bytes)?;
-        r1 |= ((b & 0x7f) as u32) << 14;
+        r1 |= u32::from(b & 0x7f) << 14;
         if b & 0x80 == 0 {
-            return Ok(r0 as u64 | (r1 as u64) << 28);
+            return Ok(u64::from(r0) | u64::from(r1) << 28);
         }
 
         b = self.read_u8(bytes)?;
-        r1 |= ((b & 0x7f) as u32) << 21;
+        r1 |= u32::from(b & 0x7f) << 21;
         if b & 0x80 == 0 {
-            return Ok(r0 as u64 | (r1 as u64) << 28);
+            return Ok(u64::from(r0) | u64::from(r1) << 28);
         }
 
         // part2
         b = self.read_u8(bytes)?;
-        let mut r2 = (b & 0x7f) as u32;
+        let mut r2 = u32::from(b & 0x7f);
         if b & 0x80 == 0 {
-            return Ok((r0 as u64 | (r1 as u64) << 28) | (r2 as u64) << 56);
+            return Ok((u64::from(r0) | u64::from(r1) << 28) | u64::from(r2) << 56);
         }
 
         b = self.read_u8(bytes)?;
-        r2 |= (b as u32) << 7;
+        r2 |= u32::from(b) << 7;
         if b & 0x80 == 0 {
-            return Ok((r0 as u64 | (r1 as u64) << 28) | (r2 as u64) << 56);
+            return Ok((u64::from(r0) | u64::from(r1) << 28) | u64::from(r2) << 56);
         }
 
         // cannot read more than 10 bytes

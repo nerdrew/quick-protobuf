@@ -79,7 +79,7 @@ impl<W: Write> Writer<W> {
     /// Writes a tag, which represents both the field number and the wire type
     #[inline(always)]
     pub fn write_tag(&mut self, tag: u32) -> Result<()> {
-        self.write_varint(tag as u64)
+        self.write_varint(tag.into())
     }
 
     /// Writes a `int32` which is internally coded as a `varint`
@@ -97,7 +97,7 @@ impl<W: Write> Writer<W> {
     /// Writes a `uint32` which is internally coded as a `varint`
     #[inline(always)]
     pub fn write_uint32(&mut self, v: u32) -> Result<()> {
-        self.write_varint(v as u64)
+        self.write_varint(v.into())
     }
 
     /// Writes a `uint64` which is internally coded as a `varint`

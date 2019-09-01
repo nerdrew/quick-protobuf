@@ -118,9 +118,9 @@ impl ConfigBuilder {
         }
 
         Ok(ConfigBuilder {
-            in_files: in_files,
-            out_file: out_file,
-            include_paths: include_paths,
+            in_files,
+            out_file,
+            include_paths,
             headers: true,
             ..Default::default()
         })
@@ -192,7 +192,7 @@ impl ConfigBuilder {
 
                 Config {
                     in_file: in_file.to_owned(),
-                    out_file: out_file,
+                    out_file,
                     import_search_path: self.include_paths.clone(),
                     single_module: self.single_module,
                     no_output: self.no_output,

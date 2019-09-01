@@ -104,7 +104,7 @@ fn run() -> Result<(), ::failure::Error> {
     let custom_struct_derive: Vec<String> = matches
         .value_of("CUSTOM_STRUCT_DERIVE")
         .unwrap_or("")
-        .split(",")
+        .split(',')
         .map(|s| s.to_string())
         .collect();
 
