@@ -14,7 +14,7 @@ use super::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum test {
-    a = 10,
+    a = 0,
 }
 
 impl Default for test {
@@ -26,7 +26,7 @@ impl Default for test {
 impl From<i32> for test {
     fn from(i: i32) -> Self {
         match i {
-            10 => test::a,
+            0 => test::a,
             _ => Self::default(),
         }
     }

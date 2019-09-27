@@ -21,8 +21,8 @@ use super::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FooEnum {
-    FIRST_VALUE = 1,
-    SECOND_VALUE = 2,
+    FIRST_VALUE = 0,
+    SECOND_VALUE = 1,
 }
 
 impl Default for FooEnum {
@@ -34,8 +34,8 @@ impl Default for FooEnum {
 impl From<i32> for FooEnum {
     fn from(i: i32) -> Self {
         match i {
-            1 => FooEnum::FIRST_VALUE,
-            2 => FooEnum::SECOND_VALUE,
+            0 => FooEnum::FIRST_VALUE,
+            1 => FooEnum::SECOND_VALUE,
             _ => Self::default(),
         }
     }
@@ -117,11 +117,7 @@ pub struct FooMessage<'a> {
 
 impl<'a> MessageRead<'a> for FooMessage<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
-        let mut msg = FooMessage {
-            f_sint64: 4i64,
-            f_bool: true,
-            ..Self::default()
-        };
+        let mut msg = Self::default();
         while !r.is_eof() {
             match r.next_tag(bytes) {
                 Ok(8) => msg.f_int32 = r.read_int32(bytes)?,
@@ -174,8 +170,8 @@ impl<'a> MessageWrite for FooMessage<'a> {
         + if self.f_uint32 == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.f_uint32) as u64) }
         + if self.f_uint64 == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.f_uint64) as u64) }
         + if self.f_sint32 == 0i32 { 0 } else { 1 + sizeof_sint32(*(&self.f_sint32)) }
-        + if self.f_sint64 == 4i64 { 0 } else { 1 + sizeof_sint64(*(&self.f_sint64)) }
-        + if self.f_bool == true { 0 } else { 1 + sizeof_varint(*(&self.f_bool) as u64) }
+        + if self.f_sint64 == 0i64 { 0 } else { 1 + sizeof_sint64(*(&self.f_sint64)) }
+        + if self.f_bool == false { 0 } else { 1 + sizeof_varint(*(&self.f_bool) as u64) }
         + if self.f_FooEnum == data_types::FooEnum::FIRST_VALUE { 0 } else { 1 + sizeof_varint(*(&self.f_FooEnum) as u64) }
         + if self.f_fixed64 == 0u64 { 0 } else { 1 + 8 }
         + if self.f_sfixed64 == 0i64 { 0 } else { 1 + 8 }
@@ -210,8 +206,8 @@ impl<'a> MessageWrite for FooMessage<'a> {
         if self.f_uint32 != 0u32 { w.write_with_tag(24, |w| w.write_uint32(*&self.f_uint32))?; }
         if self.f_uint64 != 0u64 { w.write_with_tag(32, |w| w.write_uint64(*&self.f_uint64))?; }
         if self.f_sint32 != 0i32 { w.write_with_tag(40, |w| w.write_sint32(*&self.f_sint32))?; }
-        if self.f_sint64 != 4i64 { w.write_with_tag(48, |w| w.write_sint64(*&self.f_sint64))?; }
-        if self.f_bool != true { w.write_with_tag(56, |w| w.write_bool(*&self.f_bool))?; }
+        if self.f_sint64 != 0i64 { w.write_with_tag(48, |w| w.write_sint64(*&self.f_sint64))?; }
+        if self.f_bool != false { w.write_with_tag(56, |w| w.write_bool(*&self.f_bool))?; }
         if self.f_FooEnum != data_types::FooEnum::FIRST_VALUE { w.write_with_tag(64, |w| w.write_enum(*&self.f_FooEnum as i32))?; }
         if self.f_fixed64 != 0u64 { w.write_with_tag(73, |w| w.write_fixed64(*&self.f_fixed64))?; }
         if self.f_sfixed64 != 0i64 { w.write_with_tag(81, |w| w.write_sfixed64(*&self.f_sfixed64))?; }
@@ -313,17 +309,29 @@ impl<'a> MessageWrite for FooMessage<'a> {
                 }
             }
 
-            #[cfg(feature = "test_helpers")]
-            impl<'a> From<FooMessage<'a>> for FooMessageOwned {
-                fn from(proto: FooMessage) -> Self {
-                    use quick_protobuf::{MessageWrite, Writer};
-
-                    let mut buf = Vec::new();
-                    let mut writer = Writer::new(&mut buf);
-                    proto.write_message(&mut writer).expect("bad proto serialization");
-                    Self { inner: FooMessageOwnedInner::new(buf).unwrap() }
+            impl From<FooMessage<'static>> for FooMessageOwned {
+                fn from(proto: FooMessage<'static>) -> Self {
+                    Self {
+                        inner: Box::pin(FooMessageOwnedInner {
+                            buf: Vec::new(),
+                            proto,
+                            _pin: std::marker::PhantomPinned,
+                        })
+                    }
                 }
             }
+
+            // #[cfg(feature = "test_helpers")]
+            // impl<'a> From<FooMessage<'a>> for FooMessageOwned {
+            //     fn from(proto: FooMessage) -> Self {
+            //         use quick_protobuf::{MessageWrite, Writer};
+
+            //         let mut buf = Vec::new();
+            //         let mut writer = Writer::new(&mut buf);
+            //         proto.write_message(&mut writer).expect("bad proto serialization");
+            //         Self { inner: FooMessageOwnedInner::new(buf).unwrap() }
+            //     }
+            // }
             
 pub mod mod_FooMessage {
 
@@ -456,17 +464,29 @@ impl<'a> MessageWrite for BazMessage<'a> {
                 }
             }
 
-            #[cfg(feature = "test_helpers")]
-            impl<'a> From<BazMessage<'a>> for BazMessageOwned {
-                fn from(proto: BazMessage) -> Self {
-                    use quick_protobuf::{MessageWrite, Writer};
-
-                    let mut buf = Vec::new();
-                    let mut writer = Writer::new(&mut buf);
-                    proto.write_message(&mut writer).expect("bad proto serialization");
-                    Self { inner: BazMessageOwnedInner::new(buf).unwrap() }
+            impl From<BazMessage<'static>> for BazMessageOwned {
+                fn from(proto: BazMessage<'static>) -> Self {
+                    Self {
+                        inner: Box::pin(BazMessageOwnedInner {
+                            buf: Vec::new(),
+                            proto,
+                            _pin: std::marker::PhantomPinned,
+                        })
+                    }
                 }
             }
+
+            // #[cfg(feature = "test_helpers")]
+            // impl<'a> From<BazMessage<'a>> for BazMessageOwned {
+            //     fn from(proto: BazMessage) -> Self {
+            //         use quick_protobuf::{MessageWrite, Writer};
+
+            //         let mut buf = Vec::new();
+            //         let mut writer = Writer::new(&mut buf);
+            //         proto.write_message(&mut writer).expect("bad proto serialization");
+            //         Self { inner: BazMessageOwnedInner::new(buf).unwrap() }
+            //     }
+            // }
             
 pub mod mod_BazMessage {
 

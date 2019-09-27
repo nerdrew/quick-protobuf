@@ -1,5 +1,7 @@
+syntax = "proto3";
+
 message unit_message { }
 
 enum test {
-    a = 10;
+    a = 0;
 }
