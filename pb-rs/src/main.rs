@@ -8,7 +8,10 @@ extern crate pb_rs;
 use clap::{App, Arg};
 use pb_rs::types::FileDescriptor;
 use pb_rs::ConfigBuilder;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 fn run() -> Result<(), ::failure::Error> {
     let matches = App::new(crate_name!())
@@ -75,6 +78,8 @@ fn run() -> Result<(), ::failure::Error> {
                 .short("C")
                 .required(false)
                 .takes_value(true)
+                .multiple(true)
+                .number_of_values(1)
                 .help("The comma separated values to add to #[derive(...)] for every struct"),
         ).arg(
             Arg::with_name("CUSTOM_REPR")
@@ -101,11 +106,23 @@ fn run() -> Result<(), ::failure::Error> {
     let out_file = matches.value_of("OUTPUT").map(|o| PathBuf::from(o));
     let out_dir = matches.value_of("OUTPUT_DIR").map(|o| PathBuf::from(o));
     let custom_repr = matches.value_of("CUSTOM_REPR").map(|o| o.into());
-    let custom_struct_derive: Vec<String> = matches
-        .value_of("CUSTOM_STRUCT_DERIVE")
-        .unwrap_or("")
-        .split(',')
-        .map(|s| s.to_string())
+    let mut default_custom_struct_derive = String::new();
+    let custom_struct_derive: HashMap<String, String> = matches
+        .values_of("CUSTOM_STRUCT_DERIVE")
+        .unwrap_or_default()
+        .filter_map(|derive| {
+            if let Some(i) = derive.find('=') {
+                let name: String = derive[0..i].into();
+                let derive = derive[i + 1..].split(',').collect::<Vec<_>>().join(", ") + ", ";
+                Some((name, derive))
+            } else if default_custom_struct_derive.is_empty() {
+                default_custom_struct_derive =
+                    derive.split(',').collect::<Vec<_>>().join(", ") + ", ";
+                None
+            } else {
+                panic!("only one default_custom_struct_derive allowed!");
+            }
+        })
         .collect();
 
     let compiler = ConfigBuilder::new(
@@ -119,6 +136,7 @@ fn run() -> Result<(), ::failure::Error> {
     .error_cycle(matches.is_present("CYCLE"))
     .headers(!matches.is_present("NO_HEADERS"))
     .dont_use_cow(matches.is_present("DONT_USE_COW"))
+    .default_custom_struct_derive(default_custom_struct_derive)
     .custom_struct_derive(custom_struct_derive)
     .custom_repr(custom_repr)
     .owned(matches.is_present("OWNED"));
