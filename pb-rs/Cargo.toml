@@ -10,15 +10,15 @@ repository = "https://github.com/tafia/quick-protobuf"
 edition = "2018"
 
 [dependencies]
-nom = "3.2.1"
-clap = "2.32.0"
-failure = "0.1.1"
-failure_derive = "0.1.1"
-log = "0.4.4"
-env_logger = "0.5.13"
+nom = "^3.2"
+clap = "^2.33"
+failure = "^0.1"
+failure_derive = "^0.1"
+log = "^0.4"
+env_logger = "^0.7"
 
 [dev-dependencies]
-walkdir = "2.2.5"
+walkdir = "^2.2"
 
 [features]
 default = []
