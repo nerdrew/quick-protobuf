@@ -3,6 +3,7 @@ extern crate prost_build;
 extern crate protobuf_codegen_pure;
 
 use pb_rs::types::{Config, FileDescriptor, RpcService};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -38,7 +39,7 @@ fn main() {
     // protobuf
     protobuf_codegen_pure::Codegen::new()
         .out_dir("src")
-        .inputs(&["src/perftest_data.proto"])
+        .inputs(["src/perftest_data.proto"])
         .include("src")
         .run()
         .expect("protoc");
@@ -54,7 +55,8 @@ fn main() {
         error_cycle: false,
         headers: false,
         dont_use_cow: false,
-        custom_struct_derive: vec![],
+        default_custom_struct_derive: String::new(),
+        custom_struct_derive: HashMap::new(),
         custom_repr: None,
         custom_rpc_generator: Box::new(|rpc, writer| generate_rpc_test(rpc, writer)),
         custom_includes: Vec::new(),

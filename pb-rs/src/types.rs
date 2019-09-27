@@ -980,7 +980,7 @@ impl Message {
                 m.write(w, desc, config)?;
             }
             for e in &self.enums {
-                e.write(w)?;
+                e.write(w, config)?;
             }
             for o in &self.oneofs {
                 o.write(w, desc, config)?;
@@ -999,18 +999,14 @@ impl Message {
         desc: &FileDescriptor,
         config: &Config,
     ) -> Result<()> {
-        let mut custom_struct_derive = config.custom_struct_derive.join(", ");
-        if !custom_struct_derive.is_empty() {
-            custom_struct_derive += ", ";
-        }
+        let derive = config
+            .custom_struct_derive
+            .get(&format!("{}.{}", self.module, self.name))
+            .map(Into::into)
+            .unwrap_or(&config.default_custom_struct_derive);
 
         writeln!(w, "#[allow(clippy::derive_partial_eq_without_eq)]")?;
-
-        writeln!(
-            w,
-            "#[derive({}Debug, Default, PartialEq, Clone)]",
-            custom_struct_derive
-        )?;
+        writeln!(w, "#[derive({}Debug, Default, PartialEq, Clone)]", derive)?;
 
         if let Some(repr) = &config.custom_repr {
             writeln!(w, "#[repr({})]", repr)?;
@@ -1542,10 +1538,10 @@ impl Enumerator {
         get_modules(&self.module, self.imported, desc)
     }
 
-    fn write<W: Write>(&self, w: &mut W) -> Result<()> {
+    fn write<W: Write>(&self, w: &mut W, config: &Config) -> Result<()> {
         println!("Writing enum {}", self.name);
         writeln!(w)?;
-        self.write_definition(w)?;
+        self.write_definition(w, config)?;
         writeln!(w)?;
         if self.fields.is_empty() {
             Ok(())
@@ -1558,8 +1554,14 @@ impl Enumerator {
         }
     }
 
-    fn write_definition<W: Write>(&self, w: &mut W) -> Result<()> {
-        writeln!(w, "#[derive(Debug, PartialEq, Eq, Clone, Copy)]")?;
+    fn write_definition<W: Write>(&self, w: &mut W, config: &Config) -> Result<()> {
+        let derive = config
+            .custom_struct_derive
+            .get(&format!("{}.{}", self.module, self.name))
+            .map(Into::into)
+            .unwrap_or(&config.default_custom_struct_derive);
+
+        writeln!(w, "#[derive({}Debug, PartialEq, Eq, Clone, Copy)]", derive)?;
         writeln!(w, "pub enum {} {{", self.name)?;
         for &(ref f, ref number) in &self.fields {
             writeln!(w, "    {} = {},", f, number)?;
@@ -1651,7 +1653,13 @@ impl OneOf {
     }
 
     fn write_definition<W: Write>(&self, w: &mut W, desc: &FileDescriptor, config: &Config) -> Result<()> {
-        writeln!(w, "#[derive(Debug, PartialEq, Clone)]")?;
+        let derive = config
+            .custom_struct_derive
+            .get(&format!("{}.{}", self.module, self.name))
+            .map(Into::into)
+            .unwrap_or(&config.default_custom_struct_derive);
+
+        writeln!(w, "#[derive({}Debug, PartialEq, Clone)]", derive)?;
         if self.has_lifetime(desc, config) {
             writeln!(w, "pub enum OneOf{}<'a> {{", self.name)?;
         } else {
@@ -1841,8 +1849,9 @@ pub struct Config {
     pub error_cycle: bool,
     pub headers: bool,
     pub dont_use_cow: bool,
-    pub custom_struct_derive: Vec<String>,
     pub custom_repr: Option<String>,
+    pub default_custom_struct_derive: String,
+    pub custom_struct_derive: HashMap<String, String>,
     pub custom_rpc_generator: RpcGeneratorFunction,
     pub custom_includes: Vec<String>,
     pub owned: bool,
@@ -2310,7 +2319,7 @@ impl FileDescriptor {
         self.write_package_start(w)?;
         self.write_uses(w, config)?;
         self.write_imports(w)?;
-        self.write_enums(w)?;
+        self.write_enums(w, config)?;
         self.write_messages(w, config)?;
         self.write_rpc_services(w, config)?;
         self.write_package_end(w)?;
@@ -2399,11 +2408,11 @@ impl FileDescriptor {
         Ok(())
     }
 
-    fn write_enums<W: Write>(&self, w: &mut W) -> Result<()> {
+    fn write_enums<W: Write>(&self, w: &mut W, config: &Config) -> Result<()> {
         for m in self.enums.iter().filter(|e| !e.imported) {
             println!("Writing enum {}", m.name);
             writeln!(w)?;
-            m.write_definition(w)?;
+            m.write_definition(w, config)?;
             writeln!(w)?;
             m.write_impl_default(w)?;
             writeln!(w)?;
