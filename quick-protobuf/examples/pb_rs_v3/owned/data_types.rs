@@ -241,7 +241,7 @@ impl<'a> MessageWrite for FooMessage<'a> {
             #[derive(Debug)]
             struct FooMessageOwnedInner {
                 buf: Vec<u8>,
-                proto: FooMessage<'static>,
+                proto: Option<FooMessage<'static>>,
                 _pin: std::marker::PhantomPinned,
             }
 
@@ -249,7 +249,7 @@ impl<'a> MessageWrite for FooMessage<'a> {
                 fn new(buf: Vec<u8>) -> Result<std::pin::Pin<Box<Self>>> {
                     let inner = Self {
                         buf,
-                        proto: unsafe { std::mem::MaybeUninit::zeroed().assume_init() },
+                        proto: None,
                         _pin: std::marker::PhantomPinned,
                     };
                     let mut pinned = Box::pin(inner);
@@ -259,7 +259,7 @@ impl<'a> MessageWrite for FooMessage<'a> {
 
                     unsafe {
                         let proto = std::mem::transmute::<_, FooMessage<'static>>(proto);
-                        pinned.as_mut().get_unchecked_mut().proto = proto;
+                        pinned.as_mut().get_unchecked_mut().proto = Some(proto);
                     }
                     Ok(pinned)
                 }
@@ -277,13 +277,13 @@ impl<'a> MessageWrite for FooMessage<'a> {
                 }
 
                 pub fn proto(&self) -> &FooMessage {
-                    &self.inner.proto
+                    self.inner.proto.as_ref().unwrap()
                 }
             }
 
             impl std::fmt::Debug for FooMessageOwned {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    self.inner.proto.fmt(f)
+                    self.inner.proto.as_ref().unwrap().fmt(f)
                 }
             }
 
@@ -291,13 +291,13 @@ impl<'a> MessageWrite for FooMessage<'a> {
                 type Target = FooMessage<'static>;
 
                 fn deref(&self) -> &Self::Target {
-                    &self.inner.proto
+                    self.inner.proto.as_ref().unwrap()
                 }
             }
 
             impl DerefMut for FooMessageOwned {
                 fn deref_mut(&mut self) -> &mut Self::Target {
-                    unsafe { &mut self.inner.as_mut().get_unchecked_mut().proto }
+                    unsafe { self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap() }
                 }
             }
 
@@ -314,7 +314,7 @@ impl<'a> MessageWrite for FooMessage<'a> {
                     Self {
                         inner: Box::pin(FooMessageOwnedInner {
                             buf: Vec::new(),
-                            proto,
+                            proto: Some(proto),
                             _pin: std::marker::PhantomPinned,
                         })
                     }
@@ -396,7 +396,7 @@ impl<'a> MessageWrite for BazMessage<'a> {
             #[derive(Debug)]
             struct BazMessageOwnedInner {
                 buf: Vec<u8>,
-                proto: BazMessage<'static>,
+                proto: Option<BazMessage<'static>>,
                 _pin: std::marker::PhantomPinned,
             }
 
@@ -404,7 +404,7 @@ impl<'a> MessageWrite for BazMessage<'a> {
                 fn new(buf: Vec<u8>) -> Result<std::pin::Pin<Box<Self>>> {
                     let inner = Self {
                         buf,
-                        proto: unsafe { std::mem::MaybeUninit::zeroed().assume_init() },
+                        proto: None,
                         _pin: std::marker::PhantomPinned,
                     };
                     let mut pinned = Box::pin(inner);
@@ -414,7 +414,7 @@ impl<'a> MessageWrite for BazMessage<'a> {
 
                     unsafe {
                         let proto = std::mem::transmute::<_, BazMessage<'static>>(proto);
-                        pinned.as_mut().get_unchecked_mut().proto = proto;
+                        pinned.as_mut().get_unchecked_mut().proto = Some(proto);
                     }
                     Ok(pinned)
                 }
@@ -432,13 +432,13 @@ impl<'a> MessageWrite for BazMessage<'a> {
                 }
 
                 pub fn proto(&self) -> &BazMessage {
-                    &self.inner.proto
+                    self.inner.proto.as_ref().unwrap()
                 }
             }
 
             impl std::fmt::Debug for BazMessageOwned {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    self.inner.proto.fmt(f)
+                    self.inner.proto.as_ref().unwrap().fmt(f)
                 }
             }
 
@@ -446,13 +446,13 @@ impl<'a> MessageWrite for BazMessage<'a> {
                 type Target = BazMessage<'static>;
 
                 fn deref(&self) -> &Self::Target {
-                    &self.inner.proto
+                    self.inner.proto.as_ref().unwrap()
                 }
             }
 
             impl DerefMut for BazMessageOwned {
                 fn deref_mut(&mut self) -> &mut Self::Target {
-                    unsafe { &mut self.inner.as_mut().get_unchecked_mut().proto }
+                    unsafe { self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap() }
                 }
             }
 
@@ -469,7 +469,7 @@ impl<'a> MessageWrite for BazMessage<'a> {
                     Self {
                         inner: Box::pin(BazMessageOwnedInner {
                             buf: Vec::new(),
-                            proto,
+                            proto: Some(proto),
                             _pin: std::marker::PhantomPinned,
                         })
                     }
