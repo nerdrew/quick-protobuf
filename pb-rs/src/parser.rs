@@ -325,6 +325,7 @@ named!(
     )
 );
 
+#[allow(clippy::large_enum_variant)]
 enum MessageEvent {
     Message(Message),
     Enumerator(Enumerator),
@@ -372,7 +373,7 @@ named!(
         Vec<MessageEvent>
     )| {
         let mut msg = Message {
-            name: name.clone(),
+            name,
             ..Message::default()
         };
         for e in events {
@@ -432,6 +433,7 @@ named!(
     do_parse!(tag!("option") >> many1!(br) >> take_until_and_consume!(";") >> ())
 );
 
+#[allow(clippy::large_enum_variant)]
 enum Event {
     Syntax(Syntax),
     Import(PathBuf),

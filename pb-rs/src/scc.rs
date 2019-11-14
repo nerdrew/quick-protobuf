@@ -2,6 +2,7 @@ use crate::types::{FileDescriptor, Frequency, MessageIndex};
 use std::cmp::min;
 use std::collections::HashMap;
 
+#[allow(clippy::too_many_arguments)]
 /// a recursice strongly connected component function
 ///
 /// Uses Tarjan's algorithm

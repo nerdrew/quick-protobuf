@@ -1805,7 +1805,7 @@ impl FileDescriptor {
         // proto files with no packages are given an implicit module,
         // since every generated Rust source file represents a module
         desc.module = if desc.package.is_empty() {
-            get_file_stem(in_file)?.clone()
+            get_file_stem(in_file)?
         } else {
             desc.package.clone()
         };

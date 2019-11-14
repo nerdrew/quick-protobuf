@@ -36,21 +36,19 @@ use byteorder::WriteBytesExt;
 /// use std::borrow::Cow;
 /// use quick_protobuf::Writer;
 ///
-/// fn main() {
-///     // let mut r = File::create("...").expect("Cannot create file");
-///     // for the sake of example, we'll use a simpler struct which impl `Write`
-///     let mut r = Vec::new();
-///     let mut writer = Writer::new(&mut r);
+/// // let mut r = File::create("...").expect("Cannot create file");
+/// // for the sake of example, we'll use a simpler struct which impl `Write`
+/// let mut r = Vec::new();
+/// let mut writer = Writer::new(&mut r);
 ///
-///     // manually generates a FooBar for the example
-///     let foobar = FooBar {
-///         foos: vec![Foo { name: Some(Cow::Borrowed("test!")) }, Foo { name: None }],
-///         bars: vec![Bar { id: Some(43) }, Bar { id: None }],
-///     };
+/// // manually generates a FooBar for the example
+/// let foobar = FooBar {
+///     foos: vec![Foo { name: Some(Cow::Borrowed("test!")) }, Foo { name: None }],
+///     bars: vec![Bar { id: Some(43) }, Bar { id: None }],
+/// };
 ///
-///     // now using the generated module
-///     writer.write_message(&foobar).expect("Cannot write FooBar");
-/// }
+/// // now using the generated module
+/// writer.write_message(&foobar).expect("Cannot write FooBar");
 /// ```
 pub struct Writer<W> {
     inner: W,
