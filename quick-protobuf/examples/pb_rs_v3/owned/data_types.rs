@@ -14,8 +14,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use quick_protobuf::{MessageRead, MessageWrite, BytesReader, Writer, Result};
 use std::convert::TryFrom;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use quick_protobuf::sizeofs::*;
 use super::*;
 
@@ -258,7 +256,7 @@ impl<'a> MessageWrite for FooMessage<'a> {
                     let proto = FooMessage::from_reader(&mut reader, &pinned.buf)?;
 
                     unsafe {
-                        let proto = std::mem::transmute::<_, FooMessage<'static>>(proto);
+                        let proto = std::mem::transmute::<_, FooMessage<'_>>(proto);
                         pinned.as_mut().get_unchecked_mut().proto = Some(proto);
                     }
                     Ok(pinned)
@@ -276,28 +274,21 @@ impl<'a> MessageWrite for FooMessage<'a> {
                     &self.inner.buf
                 }
 
-                pub fn proto(&self) -> &FooMessage {
-                    self.inner.proto.as_ref().unwrap()
+                pub fn proto<'a>(&'a self) -> &'a FooMessage<'a> {
+                    unsafe { std::mem::transmute::<&FooMessage<'static>, &FooMessage<'a>>(self.inner.proto.as_ref().unwrap()) }
+                }
+
+                pub fn proto_mut<'a>(&'a mut self) -> &'a mut FooMessage<'a> {
+                    unsafe {
+                        let proto = self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap();
+                        std::mem::transmute::<_, &mut FooMessage<'a>>(proto)
+                    }
                 }
             }
 
             impl std::fmt::Debug for FooMessageOwned {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                     self.inner.proto.as_ref().unwrap().fmt(f)
-                }
-            }
-
-            impl Deref for FooMessageOwned {
-                type Target = FooMessage<'static>;
-
-                fn deref(&self) -> &Self::Target {
-                    self.inner.proto.as_ref().unwrap()
-                }
-            }
-
-            impl DerefMut for FooMessageOwned {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    unsafe { self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap() }
                 }
             }
 
@@ -320,18 +311,6 @@ impl<'a> MessageWrite for FooMessage<'a> {
                     }
                 }
             }
-
-            // #[cfg(feature = "test_helpers")]
-            // impl<'a> From<FooMessage<'a>> for FooMessageOwned {
-            //     fn from(proto: FooMessage) -> Self {
-            //         use quick_protobuf::{MessageWrite, Writer};
-
-            //         let mut buf = Vec::new();
-            //         let mut writer = Writer::new(&mut buf);
-            //         proto.write_message(&mut writer).expect("bad proto serialization");
-            //         Self { inner: FooMessageOwnedInner::new(buf).unwrap() }
-            //     }
-            // }
             
 pub mod mod_FooMessage {
 
@@ -413,7 +392,7 @@ impl<'a> MessageWrite for BazMessage<'a> {
                     let proto = BazMessage::from_reader(&mut reader, &pinned.buf)?;
 
                     unsafe {
-                        let proto = std::mem::transmute::<_, BazMessage<'static>>(proto);
+                        let proto = std::mem::transmute::<_, BazMessage<'_>>(proto);
                         pinned.as_mut().get_unchecked_mut().proto = Some(proto);
                     }
                     Ok(pinned)
@@ -431,28 +410,21 @@ impl<'a> MessageWrite for BazMessage<'a> {
                     &self.inner.buf
                 }
 
-                pub fn proto(&self) -> &BazMessage {
-                    self.inner.proto.as_ref().unwrap()
+                pub fn proto<'a>(&'a self) -> &'a BazMessage<'a> {
+                    unsafe { std::mem::transmute::<&BazMessage<'static>, &BazMessage<'a>>(self.inner.proto.as_ref().unwrap()) }
+                }
+
+                pub fn proto_mut<'a>(&'a mut self) -> &'a mut BazMessage<'a> {
+                    unsafe {
+                        let proto = self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap();
+                        std::mem::transmute::<_, &mut BazMessage<'a>>(proto)
+                    }
                 }
             }
 
             impl std::fmt::Debug for BazMessageOwned {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                     self.inner.proto.as_ref().unwrap().fmt(f)
-                }
-            }
-
-            impl Deref for BazMessageOwned {
-                type Target = BazMessage<'static>;
-
-                fn deref(&self) -> &Self::Target {
-                    self.inner.proto.as_ref().unwrap()
-                }
-            }
-
-            impl DerefMut for BazMessageOwned {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    unsafe { self.inner.as_mut().get_unchecked_mut().proto.as_mut().unwrap() }
                 }
             }
 
@@ -475,18 +447,6 @@ impl<'a> MessageWrite for BazMessage<'a> {
                     }
                 }
             }
-
-            // #[cfg(feature = "test_helpers")]
-            // impl<'a> From<BazMessage<'a>> for BazMessageOwned {
-            //     fn from(proto: BazMessage) -> Self {
-            //         use quick_protobuf::{MessageWrite, Writer};
-
-            //         let mut buf = Vec::new();
-            //         let mut writer = Writer::new(&mut buf);
-            //         proto.write_message(&mut writer).expect("bad proto serialization");
-            //         Self { inner: BazMessageOwnedInner::new(buf).unwrap() }
-            //     }
-            // }
             
 pub mod mod_BazMessage {
 

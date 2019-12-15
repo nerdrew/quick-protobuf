@@ -12,8 +12,6 @@
 use std::io::Write;
 use quick_protobuf::{MessageRead, MessageWrite, BytesReader, Writer, Result};
 use std::convert::TryFrom;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use quick_protobuf::sizeofs::*;
 use super::super::*;
 
