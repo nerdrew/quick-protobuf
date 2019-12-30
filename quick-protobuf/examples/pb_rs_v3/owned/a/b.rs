@@ -46,3 +46,13 @@ impl MessageWrite for ImportedMessage {
     }
 }
 
+
+            impl TryFrom<&[u8]> for ImportedMessage {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(ImportedMessage::from_reader(&mut reader, &buf)?)
+                }
+            }
+            

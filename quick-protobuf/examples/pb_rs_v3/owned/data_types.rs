@@ -80,6 +80,16 @@ impl MessageWrite for BarMessage {
     }
 }
 
+
+            impl TryFrom<&[u8]> for BarMessage {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(BarMessage::from_reader(&mut reader, &buf)?)
+                }
+            }
+            
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct FooMessage<'a> {
     pub f_int32: i32,
@@ -483,6 +493,16 @@ impl MessageWrite for Nested {
     }
 }
 
+
+            impl TryFrom<&[u8]> for Nested {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(Nested::from_reader(&mut reader, &buf)?)
+                }
+            }
+            
 pub mod mod_Nested {
 
 use super::*;
@@ -518,6 +538,16 @@ impl MessageWrite for NestedMessage {
     }
 }
 
+
+            impl TryFrom<&[u8]> for NestedMessage {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(NestedMessage::from_reader(&mut reader, &buf)?)
+                }
+            }
+            
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NestedEnum {
     Foo = 0,
@@ -588,3 +618,13 @@ impl MessageWrite for RepeatedMessage {
     }
 }
 
+
+            impl TryFrom<&[u8]> for RepeatedMessage {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(RepeatedMessage::from_reader(&mut reader, &buf)?)
+                }
+            }
+            

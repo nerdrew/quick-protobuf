@@ -10,6 +10,7 @@
 
 
 use quick_protobuf::{BytesReader, Result, MessageRead, MessageWrite};
+use std::convert::TryFrom;
 use super::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -53,3 +54,13 @@ impl<'a> MessageRead<'a> for unit_message {
 
 impl MessageWrite for unit_message { }
 
+
+            impl TryFrom<&[u8]> for unit_message {
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok(unit_message::from_reader(&mut reader, &buf)?)
+                }
+            }
+            

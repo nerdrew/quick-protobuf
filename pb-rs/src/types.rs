@@ -838,9 +838,14 @@ impl Message {
         writeln!(w)?;
         self.write_impl_message_write(w, desc, config)?;
 
-        if desc.owned && self.has_lifetime(desc, &mut Vec::new()) {
+        if desc.owned {
             writeln!(w)?;
-            self.write_impl_owned(w)?;
+
+            if self.has_lifetime(desc, &mut Vec::new()) {
+                self.write_impl_owned(w)?;
+            } else {
+                self.write_impl_try_from(w)?;
+            }
         }
 
         if !(self.messages.is_empty() && self.enums.is_empty() && self.oneofs.is_empty()) {
@@ -1109,6 +1114,24 @@ impl Message {
                             _pin: std::marker::PhantomPinned,
                         }})
                     }}
+                }}
+            }}
+            "#,
+            name = self.name
+        )?;
+        Ok(())
+    }
+
+    fn write_impl_try_from<W: Write>(&self, w: &mut W) -> Result<()> {
+        write!(
+            w,
+            r#"
+            impl TryFrom<&[u8]> for {name} {{
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: &[u8]) -> Result<Self> {{
+                    let mut reader = BytesReader::from_bytes(&buf);
+                    Ok({name}::from_reader(&mut reader, &buf)?)
                 }}
             }}
             "#,
@@ -2162,6 +2185,9 @@ impl FileDescriptor {
                 w,
                 "use quick_protobuf::{{BytesReader, Result, MessageRead, MessageWrite}};"
             )?;
+            if self.owned {
+                writeln!(w, "use std::convert::TryFrom;")?;
+            }
             return Ok(());
         }
         writeln!(w, "use std::io::Write;")?;
