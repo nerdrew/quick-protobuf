@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-extern crate failure;
 extern crate log;
 extern crate pb_rs;
 
@@ -13,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn run() -> Result<(), ::failure::Error> {
+fn run() -> Result<(), ::anyhow::Error> {
     let matches = App::new(crate_name!())
         .about(crate_description!())
         .author(crate_authors!("\n"))
@@ -169,7 +168,7 @@ fn main() {
     ::std::process::exit({
         if let Err(e) = run() {
             eprintln!("pb-rs fatal error");
-            for e in e.iter_chain() {
+            for e in e.chain() {
                 eprintln!("  - {}", e);
             }
             1

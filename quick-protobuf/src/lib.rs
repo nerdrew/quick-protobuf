@@ -6,8 +6,6 @@
 #![allow(dead_code)]
 
 extern crate byteorder;
-extern crate failure;
-extern crate failure_derive;
 
 pub mod errors;
 pub mod message;

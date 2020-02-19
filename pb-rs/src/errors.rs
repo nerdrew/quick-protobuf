@@ -2,64 +2,61 @@
 
 use std::io;
 
-/// An error enum which derives `Fail`
-#[derive(Debug, Fail)]
+/// An error enum which derives `std::error::Error`
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Io error
-    #[fail(display = "{}", _0)]
-    Io(#[cause] io::Error),
+    #[error("{0}")]
+    Io(#[source] io::Error),
     /// Nom Error
-    #[fail(display = "{}", _0)]
-    Nom(#[cause] ::nom::simple_errors::Err),
+    #[error("{0}")]
+    Nom(#[source] ::nom::simple_errors::Err),
 
     // No .proto file provided
-    #[fail(display = "No .proto file provided")]
+    #[error("No .proto file provided")]
     NoProto,
     /// Input file
-    #[fail(display = "Cannot read input file '{}'", _0)]
+    #[error("Cannot read input file '{0}'")]
     InputFile(String),
     /// Output file
-    #[fail(display = "Cannot read output file '{}'", _0)]
+    #[error("Cannot read output file '{0}'")]
     OutputFile(String),
     /// Output file
-    #[fail(display = "Cannot read output directory '{}'", _0)]
+    #[error("Cannot read output directory '{0}'")]
     OutputDirectory(String),
     /// Multiple input files with --output argument
-    #[fail(display = "--output only allowed for single input file")]
+    #[error("--output only allowed for single input file")]
     OutputMultipleInputs,
     /// Invalid message
-    #[fail(
-        display = "Message checks errored: {}\r\n\
-                   Proto definition might be invalid or something got wrong in the parsing",
-        _0
+    #[error(
+        "Message checks errored: {0}\r\n\
+                   Proto definition might be invalid or something got wrong in the parsing"
     )]
     InvalidMessage(String),
     /// Varint decoding error
-    #[fail(
-        display = "Cannot convert protobuf import into module import:: {}\r\n\
-                   Import definition might be invalid, some characters may not be supported",
-        _0
+    #[error(
+        "Cannot convert protobuf import into module import:: {0}\r\n\
+                   Import definition might be invalid, some characters may not be supported"
     )]
     InvalidImport(String),
     /// Empty read
-    #[fail(display = "No message or enum were read;\
+    #[error("No message or enum were read;\
                    either definition might be invalid or there were only unsupported structures")]
     EmptyRead,
     /// enum or message not found
-    #[fail(display = "Could not find message or enum {}", _0)]
+    #[error("Could not find message or enum {0}")]
     MessageOrEnumNotFound(String),
-    #[fail(
-        display = "Enum field cannot be set to '{}', this variant does not exist",
-        _0
+    #[error(
+        "Enum field cannot be set to '{0}', this variant does not exist"
     )]
     InvalidDefaultEnum(String),
     /// read_fn implementation for Maps
-    #[fail(display = "There should be a special case for maps")]
+    #[error("There should be a special case for maps")]
     ReadFnMap,
-    #[fail(display = "Messages {:?} are cyclic (missing an optional field)", _0)]
+    #[error("Messages {0:?} are cyclic (missing an optional field)")]
     Cycle(Vec<String>),
     /// --output and --output_directory both used
-    #[fail(display = "only one of --output or --output_directory allowed")]
+    #[error("only one of --output or --output_directory allowed")]
     OutputAndOutputDir,
 }
 

@@ -1,32 +1,31 @@
 //! A module to handle all errors via error-chain crate
 
-use failure::Fail;
 use std::io;
 
-/// An error enum which derives `Fail`
-#[derive(Debug, Fail)]
+/// An error enum which derives `std::error::Error`
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Io error
-    #[fail(display = "{}", _0)]
-    Io(#[cause] io::Error),
+    #[error("{0}")]
+    Io(#[source] io::Error),
     /// Utf8 Error
-    #[fail(display = "{}", _0)]
-    Utf8(#[cause] ::std::str::Utf8Error),
+    #[error("{0}")]
+    Utf8(#[source] ::std::str::Utf8Error),
 
     /// Deprecated feature (in protocol buffer specification)
-    #[fail(display = "Feature '{}' has been deprecated", _0)]
+    #[error("Feature '{0}' has been deprecated")]
     Deprecated(&'static str),
     /// Unknown wire type
-    #[fail(display = "Unknown wire type '{}', must be less than 6", _0)]
+    #[error("Unknown wire type '{0}', must be less than 6")]
     UnknownWireType(u8),
     /// Varint decoding error
-    #[fail(display = "Cannot decode varint")]
+    #[error("Cannot decode varint")]
     Varint,
     /// Error while parsing protocol buffer message
-    #[fail(display = "Error while parsing message: {}", _0)]
+    #[error("Error while parsing message: {0}")]
     Message(String),
     /// Unexpected map tag
-    #[fail(display = "Unexpected map tag: '{}', expecting 1 or 2", _0)]
+    #[error("Unexpected map tag: '{0}', expecting 1 or 2")]
     Map(u8),
 }
 
@@ -38,7 +37,7 @@ impl Into<io::Error> for Error {
         match self {
             Error::Io(x) => x,
             Error::Utf8(x) => io::Error::new(io::ErrorKind::InvalidData, x),
-            x => io::Error::new(io::ErrorKind::Other, x.compat()),
+            x => io::Error::new(io::ErrorKind::Other, x),
         }
     }
 }

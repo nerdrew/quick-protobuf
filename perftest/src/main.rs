@@ -404,7 +404,7 @@ impl perftest_data_quick::PerftestService for RpcTest {
     fn test(
         &self,
         _arg: &perftest_data_quick::Test1,
-    ) -> Result<perftest_data_quick::Test1, failure::Error> {
+    ) -> Result<perftest_data_quick::Test1, anyhow::Error> {
         println!("Also (not performance related but fun to know) - Rpc test was successful!");
         let ret = perftest_data_quick::Test1::default();
         Ok(ret)

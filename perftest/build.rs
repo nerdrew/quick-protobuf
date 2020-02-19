@@ -6,6 +6,7 @@ use pb_rs::types::{Config, FileDescriptor, RpcService};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+use std::collections::HashMap;
 
 fn generate_rpc_test<W: Write + ?Sized>(
     rpc: &RpcService,
@@ -13,7 +14,7 @@ fn generate_rpc_test<W: Write + ?Sized>(
 ) -> Result<(), pb_rs::errors::Error> {
     /* Example:
         trait <service> {
-            fn <func>(&self, arg: &<arg>) -> Result<<ret>, failure::Error>;
+            fn <func>(&self, arg: &<arg>) -> Result<<ret>, anyhow::Error>;
         }
     */
 
@@ -21,7 +22,7 @@ fn generate_rpc_test<W: Write + ?Sized>(
     for func in rpc.functions.iter() {
         writeln!(
             w,
-            "   fn {FUNC}(&self, arg: &{ARG}) -> std::result::Result<{RET}, failure::Error>;",
+            "   fn {FUNC}(&self, arg: &{ARG}) -> std::result::Result<{RET}, anyhow::Error>;",
             FUNC = func.name,
             ARG = func.arg,
             RET = func.ret
@@ -57,8 +58,9 @@ fn main() {
         error_cycle: false,
         headers: false,
         dont_use_cow: false,
-        custom_struct_derive: vec![],
         custom_repr: None,
+        default_custom_struct_derive: String::new(),
+        custom_struct_derive: HashMap::new(),
         custom_rpc_generator: Box::new(|rpc, writer| generate_rpc_test(rpc, writer)),
         custom_includes: Vec::new(),
         owned: false,
