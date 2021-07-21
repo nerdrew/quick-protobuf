@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
-set -e
+set -eux -o pipefail
 
 ./generate_modules.sh
 
-pushd quick-protobuf
-cargo run --example pb_rs_example_v3_owned
-cargo run --example pb_rs_example
-cargo run --example pb_rs_example_v3
-cargo run --example pb_rs_example_nostd --no-default-features
-popd
+cargo run -p quick-protobuf --example pb_rs_example_v3_owned
+cargo run -p quick-protobuf --example pb_rs_example
+cargo run -p quick-protobuf --example pb_rs_example_v3
+cargo run -p quick-protobuf --example pb_rs_example_nostd --no-default-features
 
-cargo test -p pb-rs -p quick-protobuf
+cargo test -p pb-rs -p quick-protobuf --examples --tests
