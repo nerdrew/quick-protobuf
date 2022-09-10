@@ -2,17 +2,15 @@ use std::path::PathBuf;
 use std::str;
 
 use crate::types::{
-    Enumerator, Field, FieldType, FileDescriptor, Frequency, Message, OneOf,
+    Enumerator, EnumField, Field, FieldType, FileDescriptor, Frequency, Message, OneOf,
     RpcFunctionDeclaration, RpcService, Syntax,
 };
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
-    character::complete::{
-        alpha1, alphanumeric1, digit1, hex_digit1, multispace1, not_line_ending,
-    },
-    combinator::{map, map_res, opt, recognize, value, verify},
+    character::complete::{alpha1, alphanumeric1, digit1, hex_digit1, multispace1, not_line_ending},
+    combinator::{map, map_res, not, opt, recognize, value, verify},
     multi::{many0, many1, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -79,8 +77,19 @@ fn integer(input: &str) -> IResult<&str, i32> {
     map_res(digit1, |s: &str| s.parse())(input)
 }
 
+fn attribute_comments(input: &str) -> IResult<&str, Vec<String>> {
+    many0(map(delimited(tag("// rust-attribute: "), take_until("\n"), opt(multispace1)), str::to_owned))(input)
+}
+
+fn one_of_attribute_comments(input: &str) -> IResult<&str, Vec<String>> {
+    many0(map(delimited(tag("// rust-one-of-attribute: "), take_until("\n"), opt(multispace1)), str::to_owned))(input)
+}
+
 fn comment(input: &str) -> IResult<&str, ()> {
-    value((), pair(tag("//"), not_line_ending))(input)
+    value(
+        (),
+        tuple((tag("//"), not(alt((tag(" rust-attribute: "), tag(" rust-one-of-attribute: ")))), not_line_ending))
+    )(input)
 }
 
 fn block_comment(input: &str) -> IResult<&str, ()> {
@@ -216,6 +225,7 @@ fn map_field(input: &str) -> IResult<&str, (FieldType, FieldType)> {
 fn message_field(input: &str) -> IResult<&str, Field> {
     map(
         tuple((
+            attribute_comments,
             opt(terminated(frequency, many1(br))),
             terminated(field_type, many1(br)),
             separated_pair(
@@ -225,7 +235,7 @@ fn message_field(input: &str) -> IResult<&str, Field> {
             ),
             delimited(many0(br), many0(key_val), pair(many0(br), tag(";"))),
         )),
-        |(freq, typ, (name, number), key_vals)| Field {
+        |(attributes, freq, typ, (name, number), key_vals)| Field {
             name,
             frequency: freq.unwrap_or(Frequency::Optional),
             number,
@@ -255,26 +265,31 @@ fn message_field(input: &str) -> IResult<&str, Field> {
                     }
                 })
                 .unwrap_or(false),
+            attributes,
         },
     )(input)
 }
 
 fn one_of(input: &str) -> IResult<&str, OneOf> {
     map(
-        pair(
+        tuple((
+            attribute_comments,
+            one_of_attribute_comments,
             preceded(pair(tag("oneof"), many1(br)), word),
             delimited(
                 pair(many0(br), tag("{")),
                 many1(delimited(many0(br), message_field, many0(br))),
                 tag("}"),
             ),
-        ),
-        |(name, fields)| OneOf {
+        )),
+        |(field_attributes, container_attributes, name, fields)| OneOf {
             name,
             fields,
             package: "".to_string(),
             module: "".to_string(),
             imported: false,
+            field_attributes,
+            container_attributes,
         },
     )(input)
 }
@@ -341,15 +356,21 @@ fn message_event(input: &str) -> IResult<&str, MessageEvent> {
 fn message(input: &str) -> IResult<&str, Message> {
     map(
         terminated(
-            pair(
+            tuple((
+                attribute_comments,
                 delimited(pair(tag("message"), many1(br)), word, many0(br)),
-                delimited(tag("{"), many0(message_event), tag("}")),
-            ),
+                delimited(
+                    tag("{"),
+                    many0(message_event),
+                    tag("}"),
+                ),
+            )),
             opt(pair(many0(br), tag(";"))),
         ),
-        |(name, events)| {
+        |(attributes, name, events)| {
             let mut msg = Message {
                 name,
+                attributes,
                 ..Default::default()
             };
             for e in events {
@@ -368,54 +389,63 @@ fn message(input: &str) -> IResult<&str, Message> {
     )(input)
 }
 
-fn enum_field(input: &str) -> IResult<&str, (String, i32)> {
-    terminated(
-        separated_pair(
-            word,
-            tuple((many0(br), tag("="), many0(br))),
-            alt((hex_integer, integer)),
+
+// TODO: add proper deprecation later. We ignore deprecated enum fields for now
+fn enum_field(input: &str) -> IResult<&str, EnumField> {
+    map(
+        terminated(
+            separated_pair(
+                pair(attribute_comments, word),
+                tuple((many0(br), tag("="), many0(br))),
+                alt((hex_integer, integer)),
+            ),
+            pair(
+                many0(alt((
+                    br,
+                    // TODO: add proper deprecation later. We ignore deprecated enum
+                    // fields for now
+                    value(
+                        (),
+                        tuple((
+                            tag("["),
+                            many0(multispace1),
+                            tag("deprecated"),
+                            many0(multispace1),
+                            tag("="),
+                            many0(multispace1),
+                            word,
+                            many0(multispace1),
+                            tag("]"),
+                        )),
+                    ),
+                ))),
+                tag(";"),
+            )
         ),
-        pair(
-            many0(alt((
-                br,
-                // TODO: add proper deprecation later. We ignore deprecated enum
-                // fields for now
-                value(
-                    (),
-                    tuple((
-                        tag("["),
-                        many0(multispace1),
-                        tag("deprecated"),
-                        many0(multispace1),
-                        tag("="),
-                        many0(multispace1),
-                        word,
-                        many0(multispace1),
-                        tag("]"),
-                    )),
-                ),
-            ))),
-            tag(";"),
-        ),
+        |((attributes, name), tag)| EnumField {
+            name,
+            tag,
+            attributes,
+        }
     )(input)
 }
 
 fn enumerator(input: &str) -> IResult<&str, Enumerator> {
     map(
-        terminated(
-            pair(
-                delimited(pair(tag("enum"), many1(br)), word, many0(br)),
-                delimited(
-                    pair(tag("{"), many0(br)),
-                    separated_list0(many0(br), enum_field),
-                    pair(many0(br), tag("}")),
-                ),
+        tuple((
+            attribute_comments,
+            delimited(pair(tag("enum"), many1(br)), word, many0(br)),
+            delimited(
+                pair(tag("{"), many0(br)),
+                separated_list0(br, enum_field),
+                pair(many0(br), tag("}")),
             ),
             opt(pair(many0(br), tag(";"))),
-        ),
-        |(name, fields)| Enumerator {
+        )),
+        |(attributes, name, fields, _)| Enumerator {
             name,
             fields,
+            attributes,
             ..Default::default()
         },
     )(input)
@@ -475,24 +505,49 @@ mod test {
 
     #[test]
     fn test_message() {
-        let msg = r#"message ReferenceData
-    {
-        repeated ScenarioInfo  scenarioSet = 1;
-        repeated CalculatedObjectInfo calculatedObjectSet = 2;
-        repeated RiskFactorList riskFactorListSet = 3;
-        repeated RiskMaturityInfo riskMaturitySet = 4;
-        repeated IndicatorInfo indicatorSet = 5;
-        repeated RiskStrikeInfo riskStrikeSet = 6;
-        repeated FreeProjectionList freeProjectionListSet = 7;
-        repeated ValidationProperty ValidationSet = 8;
-        repeated CalcProperties calcPropertiesSet = 9;
-        repeated MaturityInfo maturitySet = 10;
-    }"#;
+        let msg = r#"message ReferenceData {
+                repeated ScenarioInfo scenarioSet = 1;
+                repeated CalculatedObjectInfo calculatedObjectSet = 2;
+                repeated RiskFactorList riskFactorListSet = 3;
+                repeated RiskMaturityInfo riskMaturitySet = 4;
+                repeated IndicatorInfo indicatorSet = 5;
+                repeated RiskStrikeInfo riskStrikeSet = 6;
+                repeated FreeProjectionList freeProjectionListSet = 7;
+                repeated ValidationProperty ValidationSet = 8;
+                repeated CalcProperties calcPropertiesSet = 9;
+                repeated MaturityInfo maturitySet = 10;
+            }"#;
 
-        let mess = message(msg);
-        if let ::nom::IResult::Ok((_, mess)) = mess {
-            assert_eq!(10, mess.fields.len());
-        }
+        let mess = &file_descriptor(msg).unwrap().1.messages[0];
+        assert_eq!(10, mess.fields.len());
+
+        let msg = r#"// Boom
+            // rust-attribute: #[derive(serde::Deserialize, serde::Serialize)]
+            // rust-attribute: #[serde(default)]
+            message ReferenceData {
+                // rust-attribute: #[serde(default)]
+                repeated ScenarioInfo scenarioSet = 1;
+                repeated CalculatedObjectInfo calculatedObjectSet = 2;
+                repeated RiskFactorList riskFactorListSet = 3;
+                repeated RiskMaturityInfo riskMaturitySet = 4;
+                repeated IndicatorInfo indicatorSet = 5;
+                repeated RiskStrikeInfo riskStrikeSet = 6;
+                repeated FreeProjectionList freeProjectionListSet = 7;
+                repeated ValidationProperty ValidationSet = 8;
+                repeated CalcProperties calcPropertiesSet = 9;
+                repeated MaturityInfo maturitySet = 10;
+            }"#;
+
+        let mess = &file_descriptor(msg).unwrap().1.messages[0];
+        assert_eq!(10, mess.fields.len());
+        assert_eq!(
+            vec!["#[derive(serde::Deserialize, serde::Serialize)]", "#[serde(default)]"],
+            mess.attributes,
+        );
+        assert_eq!(
+            vec!["#[serde(default)]"],
+            mess.fields[0].attributes,
+        );
     }
 
     #[test]
@@ -506,18 +561,26 @@ mod test {
 
     #[test]
     fn test_enum() {
-        let msg = r#"enum PairingStatus {
+        let msg = r#"// rust-attribute: #[derive(serde::Deserialize, serde::Serialize)]
+            // rust-attribute: #[serde(default)]
+            enum PairingStatus {
+                // rust-attribute: #[serde(alias = "dealpaired")]
                 DEALPAIRED        = 0;
                 INVENTORYORPHAN   = 1;
                 CALCULATEDORPHAN  = 2;
                 CANCELED          = 3;
-    }"#;
+            }"#;
 
-        let mess = enumerator(msg);
-        if let ::nom::IResult::Ok((_, mess)) = mess {
-            assert_eq!(4, mess.fields.len());
-        }
-        assert_desc(msg);
+        let mess = &file_descriptor(msg).unwrap().1.enums[0];
+        assert_eq!(4, mess.fields.len());
+        assert_eq!(
+            vec!["#[derive(serde::Deserialize, serde::Serialize)]", "#[serde(default)]"],
+            mess.attributes,
+        );
+        assert_eq!(
+            vec!["#[serde(alias = \"dealpaired\")]"],
+            mess.fields[0].attributes,
+        );
     }
 
     #[test]
@@ -690,22 +753,47 @@ mod test {
     #[test]
     fn test_oneof() {
         let msg = r#"message A
-    {
-        optional int32 a1 = 1;
-        oneof a_oneof {
-            string a2 = 2;
-            int32 a3 = 3;
-            bytes a4 = 4;
-        }
-        repeated bool a5 = 5;
-    }"#;
+        {
+            optional int32 a1 = 1;
+            // rust-attribute: #[serde(flatten)]
+            // rust-one-of-attribute: #[derive(serde::Deserialize, serde::Serialize)]
+            // rust-one-of-attribute: #[serde(default)]
+            oneof a_oneof {
+                // rust-attribute: #[serde(rename = "A2")]
+                string a2 = 2;
+                int32 a3 = 3;
+                bytes a4 = 4;
+            }
+            repeated bool a5 = 5;
+            // rust-one-of-attribute: #[derive(serde::Deserialize, serde::Serialize)]
+            // rust-one-of-attribute: #[serde(default)]
+            oneof another_oneof {
+                string a6 = 6;
+                int32 a7 = 7;
+            }
+        }"#;
 
-        let mess = message(msg);
-        if let ::nom::IResult::Ok((_, mess)) = mess {
-            assert_eq!(1, mess.oneofs.len());
-            assert_eq!(3, mess.oneofs[0].fields.len());
-        }
-        assert_desc(msg);
+        let mess = &file_descriptor(msg).unwrap().1.messages[0];
+        assert_eq!(2, mess.oneofs.len());
+        assert_eq!(
+            vec!["#[derive(serde::Deserialize, serde::Serialize)]", "#[serde(default)]"],
+            mess.oneofs[0].container_attributes,
+        );
+        assert_eq!(
+            vec!["#[serde(flatten)]"],
+            mess.oneofs[0].field_attributes,
+        );
+        assert_eq!(3, mess.oneofs[0].fields.len());
+        assert_eq!(
+            vec!["#[serde(rename = \"A2\")]"],
+            mess.oneofs[0].fields[0].attributes,
+        );
+
+        assert_eq!(
+            vec!["#[derive(serde::Deserialize, serde::Serialize)]", "#[serde(default)]"],
+            mess.oneofs[1].container_attributes,
+        );
+        assert_eq!(2, mess.oneofs[1].fields.len());
     }
 
     #[test]
@@ -1148,5 +1236,34 @@ mod test {
             HAHAHAHAHA                          = 105 [deprecated=true];
         }"#);
         assert!(e.is_ok());
+        assert_eq!(23, e.as_ref().unwrap().1.fields.len());
+        assert_eq!(
+            &[
+                "HELLO",
+                "SOME_FIELD",
+                "SOME_OTHER_FIELD",
+                "BLA_BLA_BLA",
+                "THING",
+                "OTHER_THING",
+                "ANOTHER_THING",
+                "AGAIN_A_THING",
+                "THINGY",
+                "THINGYTHINGY",
+                "THINGYTHINGYTHINGY",
+                "THINGYTHINGYTHINGYTHINGY",
+                "THINGYTHINGYTHINGYTHINGYTHINGY",
+                "BLAB",
+                "BLABBLAB",
+                "BLABBLABBLAB",
+                "BLABBLABBLABBLAB",
+                "BLABBLABBLABBLABBLAB",
+                "HA",
+                "HAHA",
+                "HAHAHA",
+                "HAHAHAHA",
+                "HAHAHAHAHA",
+            ],
+            e.unwrap().1.fields.iter().map(|f| &f.name).collect::<Vec<_>>().as_slice()
+        );
     }
 }
