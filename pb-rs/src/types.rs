@@ -430,6 +430,7 @@ pub struct Field {
     pub packed: Option<bool>,
     pub boxed: bool,
     pub deprecated: bool,
+    pub attributes: Vec<String>,
 }
 
 impl Field {
@@ -488,6 +489,9 @@ impl Field {
             } else {
                 return Ok(());
             }
+        }
+        for attr in &self.attributes {
+            writeln!(w, "{}", attr)?;
         }
         write!(w, "    pub {}: ", self.name)?;
         let rust_type = self.typ.rust_type(desc, config)?;
@@ -796,6 +800,7 @@ pub struct Message {
     pub path: PathBuf,
     pub import: PathBuf,
     pub index: MessageIndex,
+    pub attributes: Vec<String>,
 }
 
 impl Message {
@@ -990,6 +995,9 @@ impl Message {
 
         writeln!(w, "#[allow(clippy::derive_partial_eq_without_eq)]")?;
         writeln!(w, "#[derive({}Debug, Default, PartialEq, Clone)]", derive)?;
+        for attr in &self.attributes {
+            writeln!(w, "{}", attr)?;
+        }
 
         if let Some(repr) = &config.custom_repr {
             writeln!(w, "#[repr({})]", repr)?;
@@ -1338,7 +1346,7 @@ impl Message {
             if let Some(var) = f.default.as_ref() {
                 if let FieldType::Enum(ref e) = f.typ {
                     let e = e.get_enum(desc);
-                    e.fields.iter().find(|&(ref name, _)| name == var)
+                    e.fields.iter().find(|enum_field| &enum_field.name == var)
                     .ok_or_else(|| Error::InvalidDefaultEnum(format!(
                                 "Error in message {}\n\
                                 Enum field {:?} has a default value '{}' which is not valid for enum index {:?}",
@@ -1475,7 +1483,7 @@ pub type RpcGeneratorFunction = Box<dyn Fn(&RpcService, &mut dyn Write) -> Resul
 #[derive(Debug, Clone, Default)]
 pub struct Enumerator {
     pub name: String,
-    pub fields: Vec<(String, i32)>,
+    pub fields: Vec<EnumField>,
     pub fully_qualified_fields: Vec<(String, i32)>,
     pub partially_qualified_fields: Vec<(String, i32)>,
     pub imported: bool,
@@ -1484,6 +1492,7 @@ pub struct Enumerator {
     pub path: PathBuf,
     pub import: PathBuf,
     pub index: EnumIndex,
+    pub attributes: Vec<String>,
 }
 
 impl Enumerator {
@@ -1493,7 +1502,7 @@ impl Enumerator {
         self.partially_qualified_fields = self
             .fields
             .iter()
-            .map(|f| (format!("{}::{}", &self.name, f.0), f.1))
+            .map(|f| (format!("{}::{}", &self.name, f.name), f.tag))
             .collect();
         self.fully_qualified_fields = self
             .partially_qualified_fields
@@ -1513,7 +1522,7 @@ impl Enumerator {
         sanitize_keyword(&mut self.name);
         sanitize_keyword(&mut self.package);
         for f in self.fields.iter_mut() {
-            sanitize_keyword(&mut f.0);
+            sanitize_keyword(&mut f.name);
         }
     }
 
@@ -1546,8 +1555,8 @@ impl Enumerator {
 
         writeln!(w, "#[derive({}Debug, PartialEq, Eq, Clone, Copy)]", derive)?;
         writeln!(w, "pub enum {} {{", self.name)?;
-        for &(ref f, ref number) in &self.fields {
-            writeln!(w, "    {} = {},", f, number)?;
+        for enum_field in &self.fields {
+            enum_field.write_definition(w, config)?;
         }
         writeln!(w, "}}")?;
         Ok(())
@@ -1567,8 +1576,8 @@ impl Enumerator {
         writeln!(w, "impl From<i32> for {} {{", self.name)?;
         writeln!(w, "    fn from(i: i32) -> Self {{")?;
         writeln!(w, "        match i {{")?;
-        for &(ref f, ref number) in &self.fields {
-            writeln!(w, "            {} => {}::{},", number, self.name, f)?;
+        for enum_field in &self.fields {
+            writeln!(w, "            {} => {}::{},", enum_field.tag, self.name, enum_field.name)?;
         }
         writeln!(w, "            _ => Self::default(),")?;
         writeln!(w, "        }}")?;
@@ -1581,13 +1590,30 @@ impl Enumerator {
         writeln!(w, "impl<'a> From<&'a str> for {} {{", self.name)?;
         writeln!(w, "    fn from(s: &'a str) -> Self {{")?;
         writeln!(w, "        match s {{")?;
-        for &(ref f, _) in &self.fields {
-            writeln!(w, "            {:?} => {}::{},", f, self.name, f)?;
+        for enum_field in &self.fields {
+            writeln!(w, "            {:?} => {}::{},", enum_field.name, self.name, enum_field.name)?;
         }
         writeln!(w, "            _ => Self::default(),")?;
         writeln!(w, "        }}")?;
         writeln!(w, "    }}")?;
         writeln!(w, "}}")?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EnumField {
+    pub name: String,
+    pub tag: i32,
+    pub attributes: Vec<String>,
+}
+
+impl EnumField {
+    fn write_definition<W: Write>(&self, w: &mut W, _config: &Config) -> Result<()> {
+        for attr in &self.attributes {
+            writeln!(w, "    {}", attr)?;
+        }
+        writeln!(w, "    {} = {},", self.name, self.tag)?;
         Ok(())
     }
 }
@@ -1599,6 +1625,8 @@ pub struct OneOf {
     pub package: String,
     pub module: String,
     pub imported: bool,
+    pub field_attributes: Vec<String>,
+    pub container_attributes: Vec<String>,
 }
 
 impl OneOf {
@@ -1643,6 +1671,9 @@ impl OneOf {
             .unwrap_or(&config.default_custom_struct_derive);
 
         writeln!(w, "#[derive({}Debug, PartialEq, Clone)]", derive)?;
+        for attr in &self.container_attributes {
+            writeln!(w, "{}", attr)?;
+        }
         if self.has_lifetime(desc, config) {
             writeln!(w, "pub enum OneOf{}<'a> {{", self.name)?;
         } else {
@@ -1657,6 +1688,9 @@ impl OneOf {
                 }
             }
 
+            for attr in &f.attributes {
+                writeln!(w, "    {}", attr)?;
+            }
             let rust_type = f.typ.rust_type(desc, config)?;
             if f.boxed {
                 writeln!(w, "    {}(Box<{}>),", f.name, rust_type)?;
@@ -1713,6 +1747,9 @@ impl OneOf {
     }
 
     fn write_message_definition<W: Write>(&self, w: &mut W, desc: &FileDescriptor, config: &Config) -> Result<()> {
+        for attr in &self.field_attributes {
+            writeln!(w, "    {}", attr)?;
+        }
         if self.has_lifetime(desc, config) {
             writeln!(
                 w,
