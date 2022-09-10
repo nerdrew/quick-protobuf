@@ -1209,6 +1209,17 @@ impl Message {
 
             #[allow(dead_code)]
             impl {name}Owned {{
+                pub unsafe fn from_parts(buf: Vec<u8>, proto: {name}<'_>) -> Self {{
+                    let proto = Some(core::mem::transmute::<_, {name}<'_>>(proto));
+                    Self {{
+                        inner: Box::pin({name}OwnedInner {{
+                            buf,
+                            proto,
+                            _pin: core::marker::PhantomPinned,
+                        }})
+                    }}
+                }}
+
                 pub fn buf(&self) -> &[u8] {{
                     &self.inner.buf
                 }}
