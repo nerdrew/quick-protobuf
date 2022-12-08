@@ -6,6 +6,9 @@
 #![allow(dead_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 pub mod errors;
 pub mod message;
 pub mod reader;
@@ -13,7 +16,7 @@ pub mod sizeofs;
 pub mod writer;
 
 pub use crate::errors::{Error, Result};
-pub use crate::message::{MessageInfo, MessageRead, MessageWrite};
+pub use crate::message::{MessageInfo, MessageRead, MessageWrite, Owned};
 pub use crate::reader::{deserialize_from_slice, BytesReader};
 pub use crate::writer::{serialize_into_slice, BytesWriter, Writer, WriterBackend};
 

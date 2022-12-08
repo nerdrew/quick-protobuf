@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::BufWriter;
 #[cfg(feature = "std")]
 use std::path::Path;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 
 use crate::errors::Result;
 use crate::reader::BytesReader;
@@ -48,4 +50,23 @@ pub trait MessageRead<'a>: Sized {
 pub trait MessageInfo {
     /// Full message path, in form of Module.Message
     const PATH: &'static str;
+}
+
+/// A trait for Owned messages
+pub trait Owned {
+    /// The proto message type
+    type Inner<'a> where Self: 'a;
+
+    /// Create an Owned message from a Vec and the inner proto message
+    unsafe fn from_parts<'a>(buf: Vec<u8>, proto: Self::Inner<'a>) -> Self;
+
+    /// The original serialized proto bytes. Warning: if the proto has been
+    /// changed, those changes will not be included in these bytes
+    fn buf(&self) -> &[u8];
+
+    /// The inner proto message
+    fn proto(&self) -> &Self::Inner<'_>;
+
+    /// A mutable reference to the inner proto message
+    fn proto_mut(&mut self) -> &mut Self::Inner<'_>;
 }

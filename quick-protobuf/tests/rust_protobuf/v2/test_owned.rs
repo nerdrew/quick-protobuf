@@ -3,7 +3,7 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use quick_protobuf::{BytesReader, MessageRead};
+use quick_protobuf::{BytesReader, MessageRead, Owned};
 
 use super::test_owned_pb::*;
 

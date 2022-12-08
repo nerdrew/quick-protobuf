@@ -1208,8 +1208,10 @@ impl Message {
             }}
 
             #[allow(dead_code)]
-            impl {name}Owned {{
-                pub unsafe fn from_parts(buf: Vec<u8>, proto: {name}<'_>) -> Self {{
+            impl quick_protobuf::Owned for {name}Owned {{
+                type Inner<'a> = {name}<'a>;
+
+                unsafe fn from_parts(buf: Vec<u8>, proto: {name}<'_>) -> Self {{
                     let proto = Some(core::mem::transmute::<_, {name}<'_>>(proto));
                     Self {{
                         inner: Box::pin({name}OwnedInner {{
@@ -1220,16 +1222,16 @@ impl Message {
                     }}
                 }}
 
-                pub fn buf(&self) -> &[u8] {{
+                fn buf(&self) -> &[u8] {{
                     &self.inner.buf
                 }}
 
-                pub fn proto<'a>(&'a self) -> &'a {name}<'a> {{
+                fn proto<'a>(&'a self) -> &'a {name}<'a> {{
                     let proto = self.inner.proto.as_ref().unwrap();
                     unsafe {{ core::mem::transmute::<&{name}<'static>, &{name}<'a>>(proto) }}
                 }}
 
-                pub fn proto_mut<'a>(&'a mut self) -> &'a mut {name}<'a> {{
+                fn proto_mut<'a>(&'a mut self) -> &'a mut {name}<'a> {{
                     let inner = self.inner.as_mut();
                     let inner = unsafe {{ inner.get_unchecked_mut() }};
                     let proto = inner.proto.as_mut().unwrap();
@@ -1310,6 +1312,14 @@ impl Message {
                 fn try_from(buf: &[u8]) -> Result<Self> {{
                     let mut reader = BytesReader::from_bytes(&buf);
                     Ok({name}::from_reader(&mut reader, &buf)?)
+                }}
+            }}
+
+            impl TryFrom<Vec<u8>> for {name} {{
+                type Error=quick_protobuf::Error;
+
+                fn try_from(buf: Vec<u8>) -> Result<Self> {{
+                    {name}::try_from(buf.as_slice())
                 }}
             }}
             "#,
@@ -2405,10 +2415,8 @@ impl FileDescriptor {
         )?;
 
         if self.owned {
-            writeln!(
-                w,
-                "use core::convert::{{TryFrom, TryInto}};"
-            )?;
+            writeln!(w, "use core::convert::{{TryFrom, TryInto}};")?;
+            writeln!(w, "use quick_protobuf::Owned;")?;
         }
 
         writeln!(w, "use quick_protobuf::sizeofs::*;")?;

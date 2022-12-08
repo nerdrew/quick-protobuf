@@ -14,7 +14,7 @@ use crate::owned::data_types::{self, BazMessage, FooMessage, FooMessageOwned};
 // mod_a::mod_b rust module
 use crate::owned::a::b::ImportedMessage;
 
-use quick_protobuf::{MessageWrite, Writer};
+use quick_protobuf::{MessageWrite, Owned, Writer};
 
 fn main() {
     // Generate a message, somehow

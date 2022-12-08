@@ -6,6 +6,7 @@ pub mod proto;
 
 fn main() {
     use std::convert::TryFrom;
+    use quick_protobuf::Owned;
 
     let encoded: Vec<u8> = vec![
         0x0au8, 0x07u8, 0x74u8, 0x65u8, 0x73u8, 0x74u8, 0x69u8, 0x6eu8, 0x67u8,
