@@ -20,16 +20,11 @@ fn sizeof_varint(v: u32) -> usize {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Syntax {
+    #[default]
     Proto2,
     Proto3,
-}
-
-impl Default for Syntax {
-    fn default() -> Syntax {
-        Syntax::Proto2
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -221,7 +216,7 @@ impl FieldType {
         matches!(self.wire_type_num_non_packed(), 1 | 5)
     }
 
-    fn regular_default<'a, 'b>(&'a self, desc: &'b FileDescriptor) -> Option<&'b str> {
+    fn regular_default<'b>(&self, desc: &'b FileDescriptor) -> Option<&'b str> {
         match *self {
             FieldType::Int32 => Some("0i32"),
             FieldType::Sint32 => Some("0i32"),
@@ -1211,15 +1206,27 @@ impl Message {
             impl quick_protobuf::Owned for {name}Owned {{
                 type Inner<'a> = {name}<'a>;
 
-                unsafe fn from_parts(buf: Vec<u8>, proto: {name}<'_>) -> Self {{
-                    let proto = Some(core::mem::transmute::<_, {name}<'_>>(proto));
-                    Self {{
-                        inner: Box::pin({name}OwnedInner {{
-                            buf,
-                            proto,
-                            _pin: core::marker::PhantomPinned,
-                        }})
+                unsafe fn try_owned_from<E>(
+                    buf: Vec<u8>,
+                    f: impl Fn(&[u8]) -> core::result::Result<Self::Inner<'_>, E>,
+                ) -> core::result::Result<Self, E>
+                where
+                    E: core::fmt::Debug + core::fmt::Display,
+                {{
+                    let inner = {name}OwnedInner {{
+                        buf,
+                        proto: None,
+                        _pin: core::marker::PhantomPinned,
+                    }};
+                    let mut inner = Box::pin(inner);
+
+                    let proto = f(&inner.buf)?;
+
+                    unsafe {{
+                        let proto = core::mem::transmute::<_, {name}<'_>>(proto);
+                        inner.as_mut().get_unchecked_mut().proto = Some(proto);
                     }}
+                    Ok(Self {{ inner }})
                 }}
 
                 fn buf(&self) -> &[u8] {{
@@ -1270,6 +1277,18 @@ impl Message {
                         inner: Box::pin({name}OwnedInner {{
                             buf: Vec::new(),
                             proto: Some(proto),
+                            _pin: core::marker::PhantomPinned,
+                        }})
+                    }}
+                }}
+            }}
+
+            impl Default for {name}Owned {{
+                fn default() -> Self {{
+                    Self {{
+                        inner: Box::pin({name}OwnedInner {{
+                            buf: Vec::new(),
+                            proto: Some({name}::default()),
                             _pin: core::marker::PhantomPinned,
                         }})
                     }}
@@ -2016,7 +2035,7 @@ impl FileDescriptor {
         if !rem.is_empty() {
             return Err(Error::TrailingGarbage(rem.chars().take(50).collect()));
         }
-        for mut m in &mut desc.messages {
+        for m in &mut desc.messages {
             if m.path.as_os_str().is_empty() {
                 m.path = in_file.to_path_buf();
                 if !import_search_path.is_empty() {

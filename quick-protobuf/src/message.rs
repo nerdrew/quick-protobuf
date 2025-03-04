@@ -53,12 +53,18 @@ pub trait MessageInfo {
 }
 
 /// A trait for Owned messages
-pub trait Owned {
+pub trait Owned: Sized + 'static {
     /// The proto message type
-    type Inner<'a> where Self: 'a;
+    type Inner<'a>: 'a;
 
     /// Create an Owned message from a Vec and the inner proto message
-    unsafe fn from_parts<'a>(buf: Vec<u8>, proto: Self::Inner<'a>) -> Self;
+    unsafe fn try_owned_from<E>(
+        buf: Vec<u8>,
+        f: impl Fn(&[u8],) -> core::result::Result<Self::Inner<'_>, E>,
+    ) -> core::result::Result<Self, E>
+    where
+        E: core::fmt::Debug + core::fmt::Display,
+    ;
 
     /// The original serialized proto bytes. Warning: if the proto has been
     /// changed, those changes will not be included in these bytes
